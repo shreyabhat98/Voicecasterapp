@@ -1,103 +1,113 @@
-import Image from "next/image";
+'use client';
+import { useEffect, useState } from 'react';
+import sdk from '@/lib/sdk';
+import { useRecorder } from '@/hooks/useRecorder';
+import { uploadToSupabase } from '@/lib/upload';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [fid, setFid] = useState<number | null>(null);
+  const [isMiniApp, setIsMiniApp] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [showApp, setShowApp] = useState(false);
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+  const { audioURL, recording, startRecording, stopRecording, reset } = useRecorder();
+
+  useEffect(() => {
+    const splash = setTimeout(() => setShowApp(true), 2000);
+    return () => clearTimeout(splash);
+  }, []);
+
+  useEffect(() => {
+    const fetchContext = async () => {
+      const context = await sdk.context.get();
+      setIsMiniApp(context?.isMiniApp || false);
+      setFid(context?.fid || 12345);
+    };
+    fetchContext();
+  }, []);
+
+  const handlePost = async () => {
+    if (!audioURL) return alert('Please record audio first!');
+    setUploading(true);
+
+    try {
+      const blob = await fetch(audioURL).then(res => res.blob());
+      const fileName = `voice-${fid}-${Date.now()}.webm`;
+
+      const url = await uploadToSupabase(blob, fileName);
+      if (!url) throw new Error('Failed to get public URL');
+
+      setPublicUrl(url);
+
+      await sdk.actions.composeCast({
+        text: `🎤 Voice cast via VoiceCaster: ${url}`,
+      });
+
+      alert(`✅ Cast posted successfully!\n\n${url}`);
+      reset();
+    } catch (err) {
+      console.error('Post failed:', err);
+      alert('Something went wrong. Check console.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (!showApp) {
+    return (
+      <main className="splash">
+        <img src="/mic.svg" className="bounce" alt="Mic Icon" />
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    );
+  }
+
+  return (
+    <main className="card">
+      <h1>Voice Caster</h1>
+      <p className="subtitle">Record and share your voice effortlessly</p>
+
+      {!audioURL ? (
+        recording ? (
+          <button className="record-btn" onClick={stopRecording}>
+            <img src="/mic.svg" width="24" height="24" alt="mic" /> Stop
+          </button>
+        ) : (
+          <button className="record-btn" onClick={startRecording}>
+            <img src="/mic.svg" width="24" height="24" alt="mic" /> Record
+          </button>
+        )
+      ) : (
+        <>
+          <audio controls src={audioURL} className="audio-player" />
+          <div className="button-group">
+            <button
+              className="record-btn"
+              onClick={handlePost}
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : 'Post Voice Cast'}
+            </button>
+            <button className="record-btn" onClick={reset}>Reset</button>
+          </div>
+          {publicUrl && (
+            <div style={{ marginTop: '16px', wordBreak: 'break-all' }}>
+              <p>
+                ✅ <a href={publicUrl} target="_blank" rel="noopener noreferrer">{publicUrl}</a>
+              </p>
+              <button
+                className="record-btn"
+                onClick={() => {
+                  navigator.clipboard.writeText(publicUrl);
+                  alert('Copied to clipboard!');
+                }}
+              >
+                Copy Link
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </main>
   );
 }
