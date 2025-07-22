@@ -20,7 +20,7 @@ export default function Home() {
 
   useEffect(() => {
     const fetchContext = async () => {
-      const context = await sdk.context.get();
+      const context = await sdk.context;
       setIsMiniApp(context?.isMiniApp || false);
       setFid(context?.fid || 12345);
     };
