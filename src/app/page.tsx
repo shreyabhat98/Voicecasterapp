@@ -23,18 +23,19 @@ export default function Home() {
     try {
       const blob = await fetch(audioURL).then(res => res.blob());
       const fileName = `voice-${Date.now()}.wav`;
-      const url = await uploadToSupabase(blob, fileName);
+      const publicUrl = await uploadToSupabase(blob, fileName);
 
-      if (!url) throw new Error('Failed to upload to Supabase');
+      if (!publicUrl) throw new Error('Upload failed');
+      setPublicUrl(publicUrl);
 
-      setPublicUrl(url);
+      const frameUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/frame?audioUrl=${encodeURIComponent(publicUrl)}`;
 
       await sdk.actions.composeCast({
-        text: `🎤 Voice cast via VoiceCaster`,
-        embeds: [url],
+        text: '🎤 Listen to my voice note!',
+        embeds: [frameUrl],
       });
 
-      alert('✅ Cast posted with inline playback!');
+      alert('✅ Voice Cast posted with Frame!');
       reset();
     } catch (err) {
       console.error(err);
@@ -77,7 +78,7 @@ export default function Home() {
             <button className="record-btn" onClick={reset}>Reset</button>
           </div>
           {publicUrl && (
-            <div style={{ marginTop: '16px', wordBreak: 'break-word' }}>
+            <div style={{ marginTop: '16px', wordBreak: 'break-word', fontSize: '0.9rem' }}>
               ✅ Public Link: <a href={publicUrl} target="_blank">{publicUrl}</a>
             </div>
           )}
