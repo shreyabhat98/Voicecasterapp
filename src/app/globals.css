@@ -16,7 +16,7 @@ body {
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
   border-radius: 1.2rem;
   padding: 1.5rem;
-  width: 90%;
+  width: 80%;
   max-width: 360px;
   backdrop-filter: blur(8px);
   display: flex;
