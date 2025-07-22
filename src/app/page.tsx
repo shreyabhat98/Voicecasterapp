@@ -5,12 +5,9 @@ import { useRecorder } from '@/hooks/useRecorder';
 import { uploadToSupabase } from '@/lib/upload';
 
 export default function Home() {
-  const [fid, setFid] = useState<number | null>(null);
-  const [isMiniApp, setIsMiniApp] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showApp, setShowApp] = useState(false);
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
-
   const { audioURL, recording, startRecording, stopRecording, reset } = useRecorder();
 
   useEffect(() => {
@@ -21,8 +18,7 @@ export default function Home() {
   useEffect(() => {
     const fetchContext = async () => {
       const context = await sdk.context;
-      setIsMiniApp(context?.isMiniApp || false);
-      setFid(context?.fid || 12345);
+      console.log('Farcaster context:', context);
     };
     fetchContext();
   }, []);
@@ -33,7 +29,7 @@ export default function Home() {
 
     try {
       const blob = await fetch(audioURL).then(res => res.blob());
-      const fileName = `voice-${fid}-${Date.now()}.webm`;
+      const fileName = `voice-${Date.now()}.webm`;
 
       const url = await uploadToSupabase(blob, fileName);
       if (!url) throw new Error('Failed to get public URL');
@@ -91,7 +87,7 @@ export default function Home() {
             <button className="record-btn" onClick={reset}>Reset</button>
           </div>
           {publicUrl && (
-            <div style={{ marginTop: '16px', wordBreak: 'break-all' }}>
+            <div style={{ marginTop: '16px', wordBreak: 'break-word' }}>
               <p>
                 ✅ <a href={publicUrl} target="_blank" rel="noopener noreferrer">{publicUrl}</a>
               </p>
