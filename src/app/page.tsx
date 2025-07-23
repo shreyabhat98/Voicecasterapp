@@ -6,14 +6,21 @@ import { uploadToSupabase } from '@/lib/upload';
 
 export default function Home() {
   const [uploading, setUploading] = useState(false);
-  const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const [showApp, setShowApp] = useState(false);
-
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const { audioURL, recording, startRecording, stopRecording, reset } = useRecorder();
 
   useEffect(() => {
     const splash = setTimeout(() => setShowApp(true), 2000);
     return () => clearTimeout(splash);
+  }, []);
+
+  useEffect(() => {
+    const fetchContext = async () => {
+      const context = await sdk.context;
+      console.log('Farcaster context:', context);
+    };
+    fetchContext();
   }, []);
 
   const handlePost = async () => {
@@ -22,24 +29,22 @@ export default function Home() {
 
     try {
       const blob = await fetch(audioURL).then(res => res.blob());
-      const fileName = `voice-${Date.now()}.wav`;
-      const publicUrl = await uploadToSupabase(blob, fileName);
+      const fileName = `voice-${Date.now()}.webm`;
 
-      if (!publicUrl) throw new Error('Upload failed');
-      setPublicUrl(publicUrl);
+      const url = await uploadToSupabase(blob, fileName);
+      if (!url) throw new Error('Failed to get public URL');
 
-      const frameUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/frame?audioUrl=${encodeURIComponent(publicUrl)}`;
+      setPublicUrl(url);
 
       await sdk.actions.composeCast({
-        text: '🎤 Listen to my voice note!',
-        embeds: [frameUrl],
+        text: `🎤 Voice cast via VoiceCaster: ${url}`,
       });
 
-      alert('✅ Voice Cast posted with Frame!');
+      alert(`✅ Cast posted successfully!\n\n${url}`);
       reset();
     } catch (err) {
-      console.error(err);
-      alert('Something went wrong');
+      console.error('Post failed:', err);
+      alert('Something went wrong. Check console.');
     } finally {
       setUploading(false);
     }
@@ -48,14 +53,14 @@ export default function Home() {
   if (!showApp) {
     return (
       <main className="splash">
-        <img src="/mic.svg" className="bounce" alt="mic icon" />
+        <img src="/mic.svg" className="bounce" alt="Mic Icon" />
       </main>
     );
   }
 
   return (
     <main className="card">
-      <h1>VoiceCaster</h1>
+      <h1>Voice Caster</h1>
       <p className="subtitle">Record and share your voice effortlessly</p>
 
       {!audioURL ? (
@@ -72,14 +77,29 @@ export default function Home() {
         <>
           <audio controls src={audioURL} className="audio-player" />
           <div className="button-group">
-            <button className="record-btn" onClick={handlePost} disabled={uploading}>
-              {uploading ? 'Posting…' : 'Post Voice Cast'}
+            <button
+              className="record-btn"
+              onClick={handlePost}
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : 'Post Voice Cast'}
             </button>
             <button className="record-btn" onClick={reset}>Reset</button>
           </div>
           {publicUrl && (
-            <div style={{ marginTop: '16px', wordBreak: 'break-word', fontSize: '0.9rem' }}>
-              ✅ Public Link: <a href={publicUrl} target="_blank">{publicUrl}</a>
+            <div style={{ marginTop: '16px', wordBreak: 'break-word' }}>
+              <p>
+                ✅ <a href={publicUrl} target="_blank" rel="noopener noreferrer">{publicUrl}</a>
+              </p>
+              <button
+                className="record-btn"
+                onClick={() => {
+                  navigator.clipboard.writeText(publicUrl);
+                  alert('Copied to clipboard!');
+                }}
+              >
+                Copy Link
+              </button>
             </div>
           )}
         </>
